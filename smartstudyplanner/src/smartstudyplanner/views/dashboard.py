@@ -6,6 +6,7 @@ from datetime import datetime, date
 from functools import partial
 from ..components.theme import AppTheme
 
+
 class DashboardView:
     def __init__(self, app):
         self.app = app
