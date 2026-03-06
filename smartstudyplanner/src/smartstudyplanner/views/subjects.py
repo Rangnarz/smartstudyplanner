@@ -272,7 +272,7 @@ class SubjectsView:
         view_btn = toga.Button(
             'View',
             on_press=partial(self.show_detail, item=item),
-            style=Pack(width=50, font_size=10, font_weight='bold',
+            style=Pack(width=75, font_size=10, font_weight='bold',
                        background_color=AppTheme.PRIMARY, color='#FFFFFF',
                        margin_right=6)
         )
