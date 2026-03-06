@@ -12,7 +12,7 @@ from .views.analytics import AnalyticsView
 
 class SmartStudyPlanner(toga.App):
     def startup(self):
-        # ── State ──────────────────────────────────────────────────────────
+        # Global State
         self.current_subject = None
         self.data_file = self.paths.data / 'planner_data.json'
         self.load_data()
