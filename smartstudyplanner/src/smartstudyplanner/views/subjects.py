@@ -162,13 +162,19 @@ class SubjectsView:
             style=Pack(flex=1, background_color=AppTheme.PRIMARY, color='#FFFFFF',
                        font_weight='bold', margin_right=8)
         )
+        self.detail_complete_btn = toga.Button(
+            'Mark Done',
+            on_press=self._toggle_complete,
+            style=Pack(flex=1, background_color=AppTheme.SUCCESS, color='#FFFFFF',
+                       font_weight='bold', margin_right=8)
+        )
         self.detail_delete_btn = toga.Button(
             'Delete',
             on_press=self._delete_current_detail,
             style=Pack(flex=1, background_color=AppTheme.DANGER, color='#FFFFFF',
                        font_weight='bold')
         )
-        detail_btn_row.add(back_btn, self.detail_delete_btn)
+        detail_btn_row.add(back_btn, self.detail_complete_btn, self.detail_delete_btn)
         self.detail_box.add(detail_btn_row)
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -306,7 +312,7 @@ class SubjectsView:
                 style=Pack(font_size=13, color=AppTheme.TEXT_PRIMARY)
             ))
             box.add(toga.Box(style=Pack(height=1, background_color=AppTheme.BORDER,
-                                        margin_top=10)))
+                                         margin_top=10)))
             return box
 
         inner.add(_row('1. Assignment Topic',   item.get('name', '')))
@@ -332,11 +338,103 @@ class SubjectsView:
         ))
         inner.add(status_box)
 
+        # ── Quick Notes ───────────────────────────────────────────────────────
+        notes_box = toga.Box(style=Pack(direction=COLUMN, margin_bottom=16))
+        notes_box.add(toga.Label(
+            '📝 Quick Notes',
+            style=Pack(font_size=11, font_weight='bold', color=AppTheme.TEXT_SECONDARY,
+                       margin_bottom=4)
+        ))
+        self.quick_notes_input = toga.MultilineTextInput(
+            placeholder='Add notes for this subject...',
+            style=Pack(height=80, background_color=AppTheme.CARD_BG,
+                       margin_bottom=6)
+        )
+        self.quick_notes_input.value = item.get('notes', '')
+        save_notes_btn = toga.Button(
+            'Save Notes',
+            on_press=self._save_quick_notes,
+            style=Pack(background_color=AppTheme.PRIMARY, color='#FFFFFF',
+                       font_weight='bold', font_size=10)
+        )
+        notes_box.add(self.quick_notes_input, save_notes_btn)
+        inner.add(notes_box)
+
+        # ── Study Resources (F2) ──────────────────────────────────────────────
+        res_box = toga.Box(style=Pack(direction=COLUMN, margin_bottom=16))
+        res_box.add(toga.Label(
+            '🔗 Study Resources',
+            style=Pack(font_size=11, font_weight='bold', color=AppTheme.TEXT_SECONDARY, margin_bottom=4)
+        ))
+
+        resources = item.get('resources', [])
+        if not resources:
+            res_box.add(toga.Label('No resources saved.', style=Pack(font_size=10, color=AppTheme.INACTIVE, font_style='italic')))
+        else:
+            for i, res in enumerate(resources):
+                r_row = toga.Box(style=Pack(direction=ROW, margin_bottom=4, align_items=CENTER))
+                r_row.add(toga.Label(f"• {res}", style=Pack(flex=1, font_size=10, color=AppTheme.TEXT_PRIMARY)))
+                r_row.add(toga.Button(
+                    '❌',
+                    on_press=lambda w, idx=i: self._delete_resource(idx),
+                    style=Pack(width=30, background_color='transparent', color=AppTheme.DANGER, font_size=8)
+                ))
+                res_box.add(r_row)
+
+        # Add Resource Input
+        add_res_row = toga.Box(style=Pack(direction=ROW, margin_top=4))
+        self.new_res_input = toga.TextInput(placeholder='URL or reference...', style=Pack(flex=1))
+        add_res_row.add(self.new_res_input)
+        add_res_row.add(toga.Button('Add', on_press=self._add_resource, style=Pack(background_color=AppTheme.PRIMARY_DARK, color='#FFFFFF', font_weight='bold')))
+        res_box.add(add_res_row)
+        inner.add(res_box)
+
+        # ── Flashcards (F1) ───────────────────────────────────────────────────
+        fc_box = toga.Box(style=Pack(direction=COLUMN, margin_bottom=16, background_color=AppTheme.CARD_BG, padding=12))
+        flashcard_count = len(item.get('flashcards', []))
+        fc_text = f'{flashcard_count} cards available' if flashcard_count > 0 else 'Create your first flashcard!'
+        fc_box.add(toga.Label('🗂️ Flashcards (Spaced Repetition)', style=Pack(font_weight='bold', font_size=11, margin_bottom=2)))
+        fc_box.add(toga.Label(fc_text, style=Pack(color=AppTheme.TEXT_SECONDARY, font_size=10, margin_bottom=8)))
+        fc_box.add(toga.Button(
+            'Review / Edit Flashcards',
+            on_press=self._open_flashcards,
+            style=Pack(background_color=AppTheme.SUCCESS, color='#FFFFFF', font_weight='bold', height=36)
+        ))
+        inner.add(fc_box)
+
         self.detail_content.add(inner)
+
+        # Update the complete/pending button label
+        is_done = item.get('completed', False)
+        self.detail_complete_btn.text  = 'Mark Pending' if is_done else 'Mark Done'
+        self.detail_complete_btn.style.background_color = (
+            AppTheme.WARNING if is_done else AppTheme.SUCCESS
+        )
 
         self.app.content_area.clear()
         self.app.update_nav_style('subj')
         self.app.content_area.add(self.detail_box)
+
+    def _toggle_complete(self, widget):
+        if self._detail_subject:
+            for s in self.app.subjects_data:
+                if s['name'] == self._detail_subject:
+                    s['completed'] = not s.get('completed', False)
+                    is_done = s['completed']
+                    self.detail_complete_btn.text = 'Mark Pending' if is_done else 'Mark Done'
+                    self.detail_complete_btn.style.background_color = (
+                        AppTheme.WARNING if is_done else AppTheme.SUCCESS
+                    )
+                    break
+            self.app.save_data()
+
+    def _save_quick_notes(self, widget):
+        if self._detail_subject:
+            for s in self.app.subjects_data:
+                if s['name'] == self._detail_subject:
+                    s['notes'] = self.quick_notes_input.value
+                    break
+            self.app.save_data()
 
     def _delete_current_detail(self, widget):
         if self._detail_subject:
@@ -347,6 +445,42 @@ class SubjectsView:
             self.app.save_data()
             self._detail_subject = None
         self.app.show_subject_list(None)
+
+    # ── New Resource & Flashcard Helpers ─────────────────────────────────────
+
+    def _add_resource(self, widget):
+        url = self.new_res_input.value.strip()
+        if url and self._detail_subject:
+            for s in self.app.subjects_data:
+                if s['name'] == self._detail_subject:
+                    if 'resources' not in s:
+                        s['resources'] = []
+                    s['resources'].append(url)
+                    break
+            self.app.save_data()
+            self.new_res_input.value = ''
+            self._refresh_detail()
+
+    def _delete_resource(self, idx):
+        if self._detail_subject:
+            for s in self.app.subjects_data:
+                if s['name'] == self._detail_subject:
+                    if 'resources' in s and 0 <= idx < len(s['resources']):
+                        s['resources'].pop(idx)
+                        break
+            self.app.save_data()
+            self._refresh_detail()
+
+    def _open_flashcards(self, widget):
+        if self._detail_subject:
+            self.app.show_flashcards(None)
+            self.app.flashcards_page.prepare_study(self._detail_subject)
+
+    def _refresh_detail(self):
+        for s in self.app.subjects_data:
+            if s['name'] == self._detail_subject:
+                self.show_detail(None, s)
+                break
 
     # ─────────────────────────────────────────────────────────────────────────
     # FORM
@@ -377,7 +511,9 @@ class SubjectsView:
             'date':     date_str,           # kept for backward compat
             'diff':     self.diff_input.value,
             'completed': False,
-            'journal':  ''
+            'journal':  '',
+            'resources': [],
+            'flashcards': []
         })
         self.app.save_data()
         self.app.show_subject_list(None)

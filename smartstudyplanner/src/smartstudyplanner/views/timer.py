@@ -16,6 +16,9 @@ class TimerView:
         self.selected_minutes     = 25
         self.is_running           = False
         self.is_paused            = True
+        self.is_pomodoro          = False
+        self.is_break             = False
+        self.pomodoro_count       = 0
         self._tick_task           = None   # asyncio Task reference
         self.build_ui()
 
@@ -75,6 +78,17 @@ class TimerView:
         )
         self.duration_select.value = '25 min'
         self.duration_box.add(self.duration_select)
+
+        self.pomodoro_switch = toga.Switch(
+            'Pomodoro Mode (Work/Break)',
+            style=Pack(margin_top=14, font_size=11, font_weight='bold', color=AppTheme.TEXT_PRIMARY)
+        )
+        self.focus_switch = toga.Switch(
+            'Focus Mode (Hide App Navigation)',
+            style=Pack(margin_top=10, font_size=11, font_weight='bold', color=AppTheme.DANGER)
+        )
+        self.duration_box.add(self.pomodoro_switch, self.focus_switch)
+
         body.add(self.duration_box)
 
         # Timer display wrapper
@@ -123,7 +137,85 @@ class TimerView:
             style=Pack(width=140, font_size=15, font_weight='bold',
                        background_color=AppTheme.PRIMARY, color='#FFFFFF')
         )
+        
+        self.end_session_btn = toga.Button(
+            'Finish Session',
+            on_press=self.end_session,
+            style=Pack(width=140, font_size=11, font_weight='bold',
+                       background_color=AppTheme.SUCCESS, color='#FFFFFF',
+                       margin_top=10)
+        )
+        
+        self.cancel_timer_btn = toga.Button(
+            'Cancel Timer',
+            on_press=self.cancel_session,
+            style=Pack(width=140, font_size=11, font_weight='bold',
+                       background_color=AppTheme.CARD_BG, color=AppTheme.DANGER,
+                       margin_top=8)
+        )
+
+        # Only add the Start button; Finish/Cancel are added dynamically on Start press
         self.timer_main_view.add(self.start_timer_btn)
+
+    def _pause_timer_state(self):
+        self.is_running = False
+        self.is_paused  = True
+        self.start_timer_btn.text = 'Resume'
+        self.start_timer_btn.style.background_color = AppTheme.SUCCESS
+        
+        # Restore navigation if Focus Mode was on
+        if self.focus_switch.value:
+            self.app.nav_bar.style.display = 'flex'
+
+    def finish_early(self, widget):
+        if self._tick_task and not self._tick_task.done():
+            self._tick_task.cancel()
+        self.is_paused = True
+        self.time_left = 0
+        
+        self.app.current_subject = None
+        
+        try:
+            self.duration_box.style.update(display='pack')
+            self.timer_main_view.remove(self.end_session_btn)
+            self.timer_main_view.remove(self.cancel_timer_btn)
+        except Exception:
+            pass
+        
+        # Restore navigation if Focus Mode was on
+        if self.focus_switch.value:
+            self.app.nav_bar.style.display = 'flex'
+
+        self.app.show_dashboard(None)
+
+    def end_session(self, widget):
+        self.is_running = False
+        self.is_paused = True
+        # Restore navigation if Focus Mode was on
+        if self.focus_switch.value:
+            self.app.nav_bar.style.display = 'flex'
+        self.timer_content_wrapper.clear()
+        self.timer_content_wrapper.add(self.timer_journal_view)
+
+    def cancel_session(self, widget):
+        self.is_running = False
+        self.is_paused = True
+        self.time_left = 0
+        
+        self.app.current_subject = None
+        
+        try:
+            self.duration_box.style.update(display='pack')
+            self.timer_main_view.remove(self.end_session_btn)
+            self.timer_main_view.remove(self.cancel_timer_btn)
+        except Exception:
+            pass
+        
+        # Restore navigation if Focus Mode was on
+        if self.focus_switch.value:
+            self.app.nav_bar.style.display = 'flex'
+
+        self.app.show_dashboard(None)
 
     def _build_journal_view(self):
         self.timer_journal_view = toga.Box(
@@ -171,8 +263,22 @@ class TimerView:
         self.top_running_label.text = ''
         self.is_running          = False
         self.is_paused           = True
+        self.is_pomodoro         = False
+        self.is_break            = False
+        self.pomodoro_switch.value = False
+        self.pomodoro_count      = 0
         self.start_timer_btn.text = 'Start'
         self.duration_select.value = '25 min'
+
+        try:
+            self.timer_main_view.remove(self.end_session_btn)
+            self.timer_main_view.remove(self.cancel_timer_btn)
+        except Exception:
+            pass
+
+        # Restore navigation if Focus Mode was on
+        if self.focus_switch.value:
+            self.app.nav_bar.style.display = 'flex'
 
         self.timer_content_wrapper.clear()
         self.timer_content_wrapper.add(self.timer_main_view)
@@ -191,6 +297,8 @@ class TimerView:
         m, s   = divmod(rem, 60)
         self.time_label.text     = f'{h:02d} : {m:02d} : {s:02d}'
         self.progress_label.text = ''
+        self.is_pomodoro = self.pomodoro_switch.value
+        self.is_break = False
 
     async def timer_tick(self):
         self.is_running = True
@@ -213,20 +321,45 @@ class TimerView:
                 await asyncio.sleep(0.1)
 
         if self.time_left == 0 and self.is_running:
-            self.is_running = False
-            self.progress_label.text    = '100% complete!'
-            self.top_running_label.text = 'Done!'
-            self.timer_content_wrapper.clear()
-            self.timer_content_wrapper.add(self.timer_journal_view)
+            if self.is_pomodoro:
+                if not self.is_break:
+                    self.pomodoro_count += 1
+                    self.is_break = True
+                    self.is_paused = True
+                    self.total_duration_secs = 5 * 60
+                    self.time_left = self.total_duration_secs
+                    self.time_label.text = '00 : 05 : 00'
+                    self.progress_label.text = f'Pomodoro #{self.pomodoro_count} complete! Break Time ☕'
+                    self.top_running_label.text = 'Break Time!'
+                    self.start_timer_btn.text = 'Start Break'
+                else:
+                    self.is_break = False
+                    self.is_paused = True
+                    self._apply_duration()
+                    self.start_timer_btn.text = 'Start Work'
+                    self.progress_label.text = f'Break finished! Ready for Pomodoro #{self.pomodoro_count + 1}?'
+                    self.top_running_label.text = 'Ready to Work!'
+            else:
+                self.is_running = False
+                self.progress_label.text    = '100% complete!'
+                self.top_running_label.text = 'Done!'
+                self.timer_content_wrapper.clear()
+                self.timer_content_wrapper.add(self.timer_journal_view)
 
     def toggle_timer(self, widget):
         if not self.app.current_subject:
             return
         if not self.is_running:
             self._apply_duration()
-            # hide duration picker
+            # hide duration picker, show cancel/end
             try:
                 self.duration_box.style.update(display='none')
+                self.timer_main_view.add(self.end_session_btn)
+                self.timer_main_view.add(self.cancel_timer_btn)
+                
+                # F4: Focus Mode implementation
+                if self.focus_switch.value:
+                    self.app.nav_bar.style.display = 'none'
             except Exception:
                 pass
             self.is_paused = False
@@ -249,15 +382,20 @@ class TimerView:
         self.is_running = False   # stop tick loop
         for s in self.app.subjects_data:
             if s['name'] == self.app.current_subject:
-                s['completed'] = True
-                s['journal']   = self.journal_input.value
+                # Do NOT mark as completed automatically.
+                # Just append notes if the user typed something
+                new_note = self.journal_input.value.strip()
+                if new_note:
+                    existing = s.get('journal', '')
+                    s['journal'] = f"{existing}\n- {new_note}".strip() if existing else new_note
 
         subj_name = self.app.current_subject
         mins = max(1, self.total_duration_secs // 60)
-        if subj_name in self.app.reading_history:
-            self.app.reading_history[subj_name]['minutes'] += mins
-        else:
-            self.app.reading_history[subj_name] = {'minutes': mins}
+        
+        hist = self.app.reading_history.setdefault(subj_name, {'minutes': 0, 'pomodoros': 0})
+        hist['minutes'] += mins
+        if self.is_pomodoro and self.pomodoro_count > 0:
+            hist['pomodoros'] = hist.get('pomodoros', 0) + self.pomodoro_count
 
         self.app.save_data()
         self.journal_input.value = ''

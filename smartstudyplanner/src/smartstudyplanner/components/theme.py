@@ -1,24 +1,20 @@
 class AppTheme:
-    # Primary palette — bright light blue minimalist
-    PRIMARY       = '#7ca0cc'   # vivid sky blue
-    PRIMARY_LIGHT = '#EBF4FF'   # very pale blue tint (card backgrounds)
-    PRIMARY_DARK  = '#2176D8'   # deeper blue for pressed states
+    PRIMARY       = '#7ca0cc'
+    PRIMARY_LIGHT = '#EBF4FF'
+    PRIMARY_DARK  = '#2176D8'
 
-    SUCCESS       = '#34C97A'   # fresh mint green
-    DANGER        = '#FF5A65'   # soft coral red
-    WARNING       = '#FFB347'   # warm amber
+    SUCCESS       = '#34C97A'
+    DANGER        = '#FF5A65'
+    WARNING       = '#FFB347'
 
-    # Backgrounds
-    BACKGROUND    = '#F5F9FF'   # off-white with blue tint
-    CARD_BG       = '#FFFFFF'   # pure white cards
-    NAV_BG        = '#FFFFFF'   # white navbar
+    BACKGROUND    = '#F5F9FF'
+    CARD_BG       = '#FFFFFF'
+    NAV_BG        = '#FFFFFF'
 
-    # Text
-    TEXT_PRIMARY   = '#1A2B4A'  # deep navy
-    TEXT_SECONDARY = '#6B82A0'  # muted slate
-    INACTIVE       = '#A8BCCF'  # light grey-blue
+    TEXT_PRIMARY   = '#1A2B4A'
+    TEXT_SECONDARY = '#6B82A0'
+    INACTIVE       = '#A8BCCF'
 
-    # Accents per subject (for bar chart)
     SUBJECT_COLORS = [
         '#4A9EFF', '#34C97A', '#FF7EB3', '#FFB347',
         '#A78BFA', '#38BDF8', '#FB923C', '#4ADE80',
