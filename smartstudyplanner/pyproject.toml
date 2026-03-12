@@ -11,8 +11,9 @@ author_email = "1166109051431@mail.rmutt.ac.th"
 [tool.briefcase.app.smartstudyplanner]
 formal_name = "Smart Study Planner"
 description = "My Smart Study Planner"
-long_description = """More details about the app should go here.
-"""
+icon = "resources/icon"
+splash = "resources/splash"
+
 sources = [
     "src/smartstudyplanner",
 ]

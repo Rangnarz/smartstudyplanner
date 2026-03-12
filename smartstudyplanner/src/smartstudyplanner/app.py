@@ -62,6 +62,9 @@ class SmartStudyPlanner(toga.App):
         self.main_window = toga.MainWindow(title=self.formal_name, size=(400, 750))
         self.main_window.content = self.main_box
 
+        # Explicitly set the app icon to ensure it loads on all platforms
+        self.icon = "resources/icon"
+
         self.show_dashboard(None)
         self.main_window.show()
 
@@ -188,4 +191,4 @@ class SmartStudyPlanner(toga.App):
 
 
 def main():
-    return SmartStudyPlanner('Smart Study Planner', 'org.example.smartstudyplanner')
+    return SmartStudyPlanner('Smart Study Planner', 'com.example.smartstudyplanner')
